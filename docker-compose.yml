@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Relational Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: kisansetu_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kisansetu_user
+      POSTGRES_PASSWORD: kisansetu_password
+      POSTGRES_DB: kisansetu_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kisansetu_user -d kisansetu_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis Cache & Session Store
+  redis:
+    image: redis:7-alpine
+    container_name: kisansetu_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # 3. KisanSetu Next.js Web App
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kisansetu_web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://kisansetu_user:kisansetu_password@postgres:5432/kisansetu_db?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      NODE_ENV: "production"
+      JWT_SECRET: "production_secret_key_soil_to_consumer_2026"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
